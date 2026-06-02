@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id            String         @id @default(cuid())
+  nombre        String
+  email         String         @unique
+  password      String
+  moneda        String         @default("HNL")
+  pushToken     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  categorias    Categoria[]
+  transacciones Transaccion[]
+  presupuestos  Presupuesto[]
+  metas         Meta[]
+  alertas       Alerta[]
+  cuentas       Cuenta[]
+  recurrentes   TransaccionRecurrente[]
+}
+
+enum TipoTransaccion {
+  INGRESO
+  GASTO
+}
+
+enum TipoCuenta {
+  EFECTIVO
+  BANCO
+  TARJETA
+  AHORRO
+}
+
+model Cuenta {
+  id            String        @id @default(cuid())
+  nombre        String
+  tipo          TipoCuenta
+  saldo         Float         @default(0)
+  color         String        @default("#7C3AED")
+  usuarioId     String
+  usuario       Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  transacciones Transaccion[]
+  recurrentes   TransaccionRecurrente[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Categoria {
+  id            String          @id @default(cuid())
+  nombre        String
+  color         String          @default("#6366f1")
+  icono         String          @default("circle")
+  tipo          TipoTransaccion
+  usuarioId     String
+  usuario       Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  transacciones Transaccion[]
+  presupuestos  Presupuesto[]
+  recurrentes   TransaccionRecurrente[]
+  createdAt     DateTime        @default(now())
+
+  @@unique([nombre, usuarioId])
+}
+
+model Transaccion {
+  id          String          @id @default(cuid())
+  monto       Float
+  descripcion String?
+  fecha       DateTime        @default(now())
+  tipo        TipoTransaccion
+  usuarioId   String
+  usuario     Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  categoriaId String
+  categoria   Categoria       @relation(fields: [categoriaId], references: [id])
+  cuentaId    String?
+  cuenta      Cuenta?         @relation(fields: [cuentaId], references: [id])
+  createdAt   DateTime        @default(now())
+}
+
+model Presupuesto {
+  id          String    @id @default(cuid())
+  limite      Float
+  mes         Int
+  anio        Int
+  usuarioId   String
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  categoriaId String
+  categoria   Categoria @relation(fields: [categoriaId], references: [id])
+  alertas     Alerta[]
+  createdAt   DateTime  @default(now())
+
+  @@unique([usuarioId, categoriaId, mes, anio])
+}
+
+enum Frecuencia {
+  DIARIA
+  SEMANAL
+  MENSUAL
+  ANUAL
+}
+
+model TransaccionRecurrente {
+  id           String          @id @default(cuid())
+  nombre       String
+  monto        Float
+  tipo         TipoTransaccion
+  categoriaId  String
+  categoria    Categoria       @relation(fields: [categoriaId], references: [id])
+  cuentaId     String?
+  cuenta       Cuenta?         @relation(fields: [cuentaId], references: [id])
+  frecuencia   Frecuencia
+  proximaFecha DateTime
+  activa       Boolean         @default(true)
+  usuarioId    String
+  usuario      Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+enum TipoAlerta {
+  PRESUPUESTO_80
+  PRESUPUESTO_100
+  META_COMPLETADA
+}
+
+model Alerta {
+  id            String       @id @default(cuid())
+  tipo          TipoAlerta
+  mensaje       String
+  leida         Boolean      @default(false)
+  usuarioId     String
+  usuario       Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  presupuestoId String?
+  presupuesto   Presupuesto? @relation(fields: [presupuestoId], references: [id])
+  createdAt     DateTime     @default(now())
+}
+
+model Meta {
+  id            String    @id @default(cuid())
+  nombre        String
+  montoObjetivo Float
+  montoActual   Float     @default(0)
+  fechaLimite   DateTime?
+  completada    Boolean   @default(false)
+  color         String    @default("#10b981")
+  usuarioId     String
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
