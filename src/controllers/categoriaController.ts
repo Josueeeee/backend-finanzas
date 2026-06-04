@@ -44,6 +44,6 @@ export const eliminarCategoria = async (req: AuthRequest, res: Response): Promis
     res.status(400).json({ error: 'No puedes eliminar una categoría con transacciones asociadas' }); return
   }
 
-  await prisma.categoria.delete({ where: { id } })
+  await prisma.categoria.deleteMany({ where: { id, usuarioId: req.usuarioId! } })
   res.json({ ok: true })
 }

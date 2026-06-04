@@ -65,11 +65,11 @@ export const toggleActiva = async (req: AuthRequest, res: Response): Promise<voi
     where: { id, usuarioId: req.usuarioId },
   })
   if (!recurrente) { res.status(404).json({ error: 'No encontrada' }); return }
-  const updated = await prisma.transaccionRecurrente.update({
-    where: { id },
+  await prisma.transaccionRecurrente.updateMany({
+    where: { id, usuarioId: req.usuarioId! },
     data: { activa: !recurrente.activa },
   })
-  res.json(updated)
+  res.json({ ...recurrente, activa: !recurrente.activa })
 }
 
 export const eliminarRecurrente = async (req: AuthRequest, res: Response): Promise<void> => {

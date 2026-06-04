@@ -14,7 +14,7 @@ export const verificarToken = (req: AuthRequest, res: Response, next: NextFuncti
   }
   const token = authHeader.split(' ')[1]
   try {
-    const payload = jwt.verify(token, env.jwtSecret) as { usuarioId: string }
+    const payload = jwt.verify(token, env.jwtSecret, { algorithms: ['HS256'] }) as { usuarioId: string }
     req.usuarioId = payload.usuarioId
     next()
   } catch {

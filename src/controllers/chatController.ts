@@ -4,7 +4,11 @@ import multer from 'multer'
 import { prisma } from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth'
 
-export const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } })
+export const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_, file, cb) => cb(null, file.mimetype.startsWith('audio/')),
+})
 
 function getGroq(): Groq {
   if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY no configurada')
@@ -496,8 +500,12 @@ REGLAS:
 export const chat = async (req: AuthRequest, res: Response): Promise<void> => {
   const { mensajes } = req.body as { mensajes: Msg[] }
   if (!mensajes?.length) { res.status(400).json({ error: 'Se requiere mensajes' }); return }
+  const mensajesLimpios: Msg[] = mensajes
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .map(m => ({ role: m.role, content: String((m as { content?: unknown }).content ?? '').slice(0, 2000) } as Msg))
+    .slice(-12)
   const u = await prisma.usuario.findUnique({ where: { id: req.usuarioId! }, select: { nombre: true } })
-  const respuesta = await procesarChat(mensajes, req.usuarioId!, u?.nombre ?? 'usuario')
+  const respuesta = await procesarChat(mensajesLimpios, req.usuarioId!, u?.nombre ?? 'usuario')
   res.json({ respuesta })
 }
 

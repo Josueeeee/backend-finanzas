@@ -184,7 +184,7 @@ export const eliminarTransaccion = async (req: AuthRequest, res: Response): Prom
   const transaccion = await prisma.transaccion.findFirst({ where: { id, usuarioId: req.usuarioId } })
   if (!transaccion) { res.status(404).json({ error: 'Transacción no encontrada' }); return }
 
-  await prisma.transaccion.delete({ where: { id } })
+  await prisma.transaccion.deleteMany({ where: { id, usuarioId: req.usuarioId! } })
 
   if (transaccion.cuentaId) {
     await prisma.cuenta.updateMany({

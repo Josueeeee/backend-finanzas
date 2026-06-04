@@ -38,7 +38,24 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  message: { error: 'Demasiadas peticiones al chat, espera un momento' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 app.use('/api/auth', authLimiter, authRoutes)
+app.use('/api/chat', chatLimiter, chatRoutes)
+app.use('/api', apiLimiter)
 app.use('/api/transacciones', transaccionesRoutes)
 app.use('/api/categorias', categoriasRoutes)
 app.use('/api/presupuestos', presupuestosRoutes)
@@ -47,7 +64,6 @@ app.use('/api/reportes', reportesRoutes)
 app.use('/api/alertas', alertasRoutes)
 app.use('/api/cuentas', cuentasRoutes)
 app.use('/api/recurrentes', recurrentesRoutes)
-app.use('/api/chat', chatRoutes)
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err)

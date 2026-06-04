@@ -36,7 +36,7 @@ export const registro = async (req: Request, res: Response): Promise<void> => {
       { nombre: 'Otros ingresos', color: '#a3e635', icono: 'plus-circle', tipo: 'INGRESO', usuarioId: usuario.id },
     ],
   })
-  const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn })
+  const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' })
   res.status(201).json({ usuario, token })
 }
 
@@ -51,7 +51,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.status(401).json({ error: 'Credenciales inválidas' })
     return
   }
-  const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn })
+  const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' })
   res.json({
     usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, moneda: usuario.moneda },
     token,
