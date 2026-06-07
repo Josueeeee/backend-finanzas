@@ -27,6 +27,7 @@
     "prisma": "^5.22.0"
   },
   "devDependencies": {
+    "@flydotio/dockerfile": "^0.7.10",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",

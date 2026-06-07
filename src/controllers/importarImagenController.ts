@@ -33,19 +33,24 @@ export const importarImagen = async (req: AuthRequest, res: Response): Promise<v
   const base64 = req.file.buffer.toString('base64')
   const mimeType = req.file.mimetype
 
-  const response = await groq.chat.completions.create({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image_url',
-            image_url: { url: `data:${mimeType};base64,${base64}` }
-          },
-          {
-            type: 'text',
-            text: `Eres un asistente que extrae transacciones bancarias de capturas de pantalla de apps bancarias.
+  const modoRecibo = req.query.modo === 'recibo'
+
+  const promptTexto = modoRecibo
+    ? `Eres un asistente que extrae el total de un ticket o recibo físico.
+
+Categorías de GASTO disponibles: ${catGasto}
+
+Extrae UNA SOLA transacción del ticket. Responde ÚNICAMENTE con JSON válido sin texto adicional:
+{"transacciones":[{"monto":150.00,"descripcion":"Nombre del comercio","fecha":"2026-06-01","tipo":"GASTO","categoriaNombre":"Alimentación"}]}
+
+Reglas:
+- monto: total a pagar del recibo (número positivo, sin símbolo de moneda)
+- tipo: siempre "GASTO"
+- descripcion: nombre del negocio o descripción breve del gasto
+- fecha: formato YYYY-MM-DD (usa la fecha del recibo; si no hay, usa hoy)
+- categoriaNombre: la más apropiada de las categorías de GASTO dadas
+- Si no es un recibo claro: {"transacciones":[]}`
+    : `Eres un asistente que extrae transacciones bancarias de capturas de pantalla de apps bancarias.
 
 Categorías de GASTO disponibles: ${catGasto}
 Categorías de INGRESO disponibles: ${catIngreso}
@@ -59,11 +64,25 @@ Reglas:
 - fecha: formato YYYY-MM-DD (usa la fecha visible en pantalla, si no hay usa hoy)
 - categoriaNombre: elige la más apropiada de las listas dadas
 - Si no hay transacciones claras: {"transacciones":[]}`
+
+  const response = await groq.chat.completions.create({
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: { url: `data:${mimeType};base64,${base64}` }
+          },
+          {
+            type: 'text',
+            text: promptTexto,
           }
         ]
       }
     ],
-    max_tokens: 1500,
+    max_tokens: modoRecibo ? 400 : 1500,
     temperature: 0.1,
   })
 
