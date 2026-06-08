@@ -9,6 +9,6 @@ export const env = {
   databaseUrl: required('DATABASE_URL'),
   jwtSecret: required('JWT_SECRET'),
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:8081',
-  jwtExpiresIn: 24 * 60 * 60,
+  jwtExpiresIn: 15 * 60,
   groqApiKey: process.env.GROQ_API_KEY ?? '',
 }

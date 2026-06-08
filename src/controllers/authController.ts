@@ -1,10 +1,29 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 import { env } from '../config/env'
 import { AuthRequest } from '../middleware/auth'
 import { audit, getIp } from '../lib/audit'
+
+const REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000
+
+const hashToken = (raw: string): string =>
+  crypto.createHash('sha256').update(raw).digest('hex')
+
+const generarTokens = async (usuarioId: string): Promise<{ token: string; refreshToken: string }> => {
+  const token = jwt.sign({ usuarioId }, env.jwtSecret, { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' })
+  const raw = crypto.randomBytes(40).toString('hex')
+  await prisma.refreshToken.create({
+    data: {
+      token: hashToken(raw),
+      usuarioId,
+      expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
+    },
+  })
+  return { token, refreshToken: raw }
+}
 
 export const registro = async (req: Request, res: Response): Promise<void> => {
   const { nombre, email, password } = req.body
@@ -46,9 +65,9 @@ export const registro = async (req: Request, res: Response): Promise<void> => {
       { nombre: 'Otros ingresos', color: '#a3e635', icono: 'plus-circle', tipo: 'INGRESO', usuarioId: usuario.id },
     ],
   })
-  const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' })
+  const tokens = await generarTokens(usuario.id)
   audit(usuario.id, 'REGISTRO', getIp(req), email)
-  res.status(201).json({ usuario, token })
+  res.status(201).json({ usuario, ...tokens })
 }
 
 export const login = async (req: Request, res: Response): Promise<void> => {
@@ -92,12 +111,41 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     data: { loginIntentos: 0, bloqueadoHasta: null },
   })
 
+  const tokens = await generarTokens(usuario.id)
   audit(usuario.id, 'LOGIN', getIp(req))
-  const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' })
   res.json({
     usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, moneda: usuario.moneda },
-    token,
+    ...tokens,
   })
+}
+
+export const refresh = async (req: Request, res: Response): Promise<void> => {
+  const { refreshToken } = req.body
+  if (!refreshToken) { res.status(401).json({ error: 'Refresh token requerido' }); return }
+
+  const stored = await prisma.refreshToken.findUnique({ where: { token: hashToken(refreshToken) } })
+  if (!stored || stored.revocado || stored.expiresAt < new Date()) {
+    res.status(401).json({ error: 'Refresh token inválido o expirado' })
+    return
+  }
+
+  // Rotate: revoke old, issue new
+  await prisma.refreshToken.update({ where: { id: stored.id }, data: { revocado: true } })
+  const tokens = await generarTokens(stored.usuarioId)
+  audit(stored.usuarioId, 'TOKEN_REFRESH', getIp(req))
+  res.json(tokens)
+}
+
+export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { refreshToken } = req.body
+  if (refreshToken) {
+    await prisma.refreshToken.updateMany({
+      where: { token: hashToken(refreshToken), usuarioId: req.usuarioId! },
+      data: { revocado: true },
+    })
+  }
+  audit(req.usuarioId!, 'LOGOUT', getIp(req))
+  res.json({ ok: true })
 }
 
 export const perfil = async (req: Request & { usuarioId?: string }, res: Response): Promise<void> => {

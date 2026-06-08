@@ -19,6 +19,7 @@ model Usuario {
   bloqueadoHasta DateTime?
   createdAt      DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  refreshTokens  RefreshToken[]
   categorias    Categoria[]
   transacciones Transaccion[]
   presupuestos  Presupuesto[]
@@ -141,6 +142,18 @@ model Alerta {
   presupuestoId String?
   presupuesto   Presupuesto? @relation(fields: [presupuestoId], references: [id])
   createdAt     DateTime     @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revocado  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
 }
 
 model AuditLog {
