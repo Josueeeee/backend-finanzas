@@ -29,6 +29,9 @@ export const crearTransaccion = async (req: AuthRequest, res: Response): Promise
     return
   }
 
+  if (descripcion && descripcion.length > 500) {
+    res.status(400).json({ error: 'Descripción demasiado larga (máx 500 caracteres)' }); return
+  }
   const montoNum = parseFloat(monto)
   if (isNaN(montoNum) || montoNum <= 0) {
     res.status(400).json({ error: 'Monto inválido' }); return

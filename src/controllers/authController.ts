@@ -11,6 +11,15 @@ export const registro = async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: 'Todos los campos son requeridos' })
     return
   }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    res.status(400).json({ error: 'Email inválido' })
+    return
+  }
+  if (password.length < 8) {
+    res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
+    return
+  }
   const existe = await prisma.usuario.findUnique({ where: { email } })
   if (existe) {
     res.status(409).json({ error: 'Email ya registrado' })
