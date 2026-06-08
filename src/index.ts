@@ -33,6 +33,7 @@ app.use(express.json({ limit: '10mb' }))
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
+  keyGenerator: (req) => (req.body?.email as string | undefined) ?? req.ip ?? 'unknown',
   message: { error: 'Demasiados intentos, intenta en 15 minutos' },
   standardHeaders: true,
   legacyHeaders: false,
