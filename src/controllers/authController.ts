@@ -56,10 +56,38 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     return
   }
   const usuario = await prisma.usuario.findUnique({ where: { email } })
-  if (!usuario || !(await bcrypt.compare(password, usuario.password))) {
+  if (!usuario) {
     res.status(401).json({ error: 'Credenciales inválidas' })
     return
   }
+
+  if (usuario.bloqueadoHasta && usuario.bloqueadoHasta > new Date()) {
+    const minutosRestantes = Math.ceil((usuario.bloqueadoHasta.getTime() - Date.now()) / 60000)
+    res.status(429).json({ error: `Cuenta bloqueada. Intenta en ${minutosRestantes} minuto${minutosRestantes !== 1 ? 's' : ''}` })
+    return
+  }
+
+  const passwordValida = await bcrypt.compare(password, usuario.password)
+  if (!passwordValida) {
+    const intentos = usuario.loginIntentos + 1
+    const bloqueadoHasta = intentos >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null
+    await prisma.usuario.update({
+      where: { id: usuario.id },
+      data: { loginIntentos: intentos, ...(bloqueadoHasta && { bloqueadoHasta }) },
+    })
+    if (bloqueadoHasta) {
+      res.status(429).json({ error: 'Cuenta bloqueada por 15 minutos por demasiados intentos fallidos' })
+    } else {
+      res.status(401).json({ error: `Credenciales inválidas (${intentos}/5 intentos)` })
+    }
+    return
+  }
+
+  await prisma.usuario.update({
+    where: { id: usuario.id },
+    data: { loginIntentos: 0, bloqueadoHasta: null },
+  })
+
   const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' })
   res.json({
     usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, moneda: usuario.moneda },
