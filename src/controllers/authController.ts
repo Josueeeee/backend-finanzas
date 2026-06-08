@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '../lib/prisma'
 import { env } from '../config/env'
 import { AuthRequest } from '../middleware/auth'
+import { audit, getIp } from '../lib/audit'
 
 export const registro = async (req: Request, res: Response): Promise<void> => {
   const { nombre, email, password } = req.body
@@ -46,6 +47,7 @@ export const registro = async (req: Request, res: Response): Promise<void> => {
     ],
   })
   const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' })
+  audit(usuario.id, 'REGISTRO', getIp(req), email)
   res.status(201).json({ usuario, token })
 }
 
@@ -63,6 +65,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
   if (usuario.bloqueadoHasta && usuario.bloqueadoHasta > new Date()) {
     const minutosRestantes = Math.ceil((usuario.bloqueadoHasta.getTime() - Date.now()) / 60000)
+    audit(usuario.id, 'CUENTA_BLOQUEADA', getIp(req), `Intento mientras bloqueada — ${minutosRestantes} min restantes`)
     res.status(429).json({ error: `Cuenta bloqueada. Intenta en ${minutosRestantes} minuto${minutosRestantes !== 1 ? 's' : ''}` })
     return
   }
@@ -75,6 +78,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       where: { id: usuario.id },
       data: { loginIntentos: intentos, ...(bloqueadoHasta && { bloqueadoHasta }) },
     })
+    audit(usuario.id, bloqueadoHasta ? 'LOGIN_BLOQUEADO' : 'LOGIN_FALLIDO', getIp(req), `Intento ${intentos}/5`)
     if (bloqueadoHasta) {
       res.status(429).json({ error: 'Cuenta bloqueada por 15 minutos por demasiados intentos fallidos' })
     } else {
@@ -88,6 +92,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     data: { loginIntentos: 0, bloqueadoHasta: null },
   })
 
+  audit(usuario.id, 'LOGIN', getIp(req))
   const token = jwt.sign({ usuarioId: usuario.id }, env.jwtSecret, { expiresIn: env.jwtExpiresIn, algorithm: 'HS256' })
   res.json({
     usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, moneda: usuario.moneda },

@@ -143,6 +143,17 @@ model Alerta {
   createdAt     DateTime     @default(now())
 }
 
+model AuditLog {
+  id        String   @id @default(cuid())
+  usuarioId String?
+  accion    String
+  detalle   String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
+}
+
 model Meta {
   id            String    @id @default(cuid())
   nombre        String

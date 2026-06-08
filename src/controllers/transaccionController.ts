@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { prisma } from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth'
 import { enviarPush } from '../lib/push'
+import { audit, getIp } from '../lib/audit'
 
 export const obtenerTransacciones = async (req: AuthRequest, res: Response): Promise<void> => {
   const { mes, anio, categoriaId, tipo } = req.query
@@ -188,6 +189,7 @@ export const eliminarTransaccion = async (req: AuthRequest, res: Response): Prom
   if (!transaccion) { res.status(404).json({ error: 'Transacción no encontrada' }); return }
 
   await prisma.transaccion.deleteMany({ where: { id, usuarioId: req.usuarioId! } })
+  audit(req.usuarioId!, 'ELIMINAR_TRANSACCION', getIp(req), `id:${id} monto:${transaccion.monto} tipo:${transaccion.tipo}`)
 
   if (transaccion.cuentaId) {
     await prisma.cuenta.updateMany({

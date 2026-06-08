@@ -16,6 +16,7 @@ import alertasRoutes from './routes/alertas'
 import cuentasRoutes from './routes/cuentas'
 import recurrentesRoutes from './routes/recurrentes'
 import chatRoutes from './routes/chat'
+import auditRoutes from './routes/audit'
 
 const app = express()
 
@@ -65,6 +66,7 @@ app.use('/api/reportes', reportesRoutes)
 app.use('/api/alertas', alertasRoutes)
 app.use('/api/cuentas', cuentasRoutes)
 app.use('/api/recurrentes', recurrentesRoutes)
+app.use('/api/audit', auditRoutes)
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err)
