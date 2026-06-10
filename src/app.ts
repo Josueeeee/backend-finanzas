@@ -1,0 +1,82 @@
+import 'express-async-errors'
+import express from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
+import compression from 'compression'
+import pinoHttp from 'pino-http'
+import { env } from './config/env'
+import { logger } from './lib/logger'
+import authRoutes from './routes/auth'
+import transaccionesRoutes from './routes/transacciones'
+import categoriasRoutes from './routes/categorias'
+import presupuestosRoutes from './routes/presupuestos'
+import metasRoutes from './routes/metas'
+import reportesRoutes from './routes/reportes'
+import alertasRoutes from './routes/alertas'
+import cuentasRoutes from './routes/cuentas'
+import recurrentesRoutes from './routes/recurrentes'
+import chatRoutes from './routes/chat'
+import auditRoutes from './routes/audit'
+import healthRoutes from './routes/health'
+
+const app = express()
+
+app.use(helmet())
+app.use(compression())
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || origin === env.frontendUrl) cb(null, true)
+    else cb(new Error('Not allowed by CORS'))
+  }
+}))
+app.use(express.json({ limit: '10mb' }))
+
+if (process.env.NODE_ENV !== 'test') {
+  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }))
+}
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => (req.body?.email as string | undefined) ?? req.ip ?? 'unknown',
+  message: { error: 'Demasiados intentos, intenta en 15 minutos' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  message: { error: 'Demasiadas peticiones al chat, espera un momento' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+app.use('/health', healthRoutes)
+app.use('/api/auth', authLimiter, authRoutes)
+app.use('/api/chat', chatLimiter, chatRoutes)
+app.use('/api', apiLimiter)
+app.use('/api/transacciones', transaccionesRoutes)
+app.use('/api/categorias', categoriasRoutes)
+app.use('/api/presupuestos', presupuestosRoutes)
+app.use('/api/metas', metasRoutes)
+app.use('/api/reportes', reportesRoutes)
+app.use('/api/alertas', alertasRoutes)
+app.use('/api/cuentas', cuentasRoutes)
+app.use('/api/recurrentes', recurrentesRoutes)
+app.use('/api/audit', auditRoutes)
+
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err }, err.message)
+  res.status(500).json({ error: 'Error interno del servidor' })
+})
+
+export { app }
