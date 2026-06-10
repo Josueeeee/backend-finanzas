@@ -17,6 +17,7 @@ import cuentasRoutes from './routes/cuentas'
 import recurrentesRoutes from './routes/recurrentes'
 import chatRoutes from './routes/chat'
 import auditRoutes from './routes/audit'
+import healthRoutes from './routes/health'
 
 const app = express()
 
@@ -55,6 +56,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+app.use('/health', healthRoutes)
 app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/chat', chatLimiter, chatRoutes)
 app.use('/api', apiLimiter)
